@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>RSA Prime Calculator</title>
+</head>
+<script src="js/jquery-2.1.1.min.js"></script>
+<script src="js/factoring_calculator.js"></script>
+<script src="js/mod_inverse.js"></script>
+<body>
+	<label for="txtE">e (smallest): </label>
+	<input type="text" id="txtE"></input>
+	<br>
+	<label for="txtNumber">n (largest): </label>
+	<input type="text" id="txtNumber"></input>
+	<br>
+	<button id="btnCalculate">Calculate</button>
+	<br>
+	<p>p and q: <span id="txtPandQ"></span></p>
+	<p>phi(n): <span id="txtPhi"></span></p>
+	<p>d: <span id="txtD"></span></p>
+
+	<script>
+	$("#btnCalculate").click(function()
+	{
+		var number = $("#txtNumber").val();
+
+		if(number.length < 1 || txtE.length < 1)
+		{	
+			$("#txtPandQ").html("Please fill in all the fields");
+			return false;
+		}
+
+		var result = factor(number);
+		$("#txtPandQ").html(result);
+
+		var resultSplit = result.split(" ");
+
+		for(var i = 0; i < resultSplit.length; i++)
+		{
+			resultSplit[i] = parseInt(resultSplit[i]);
+		}
+
+		var phi = (resultSplit[0] - 1) * (resultSplit[1] - 1);
+		$("#txtPhi").html(phi);
+
+		var e = $("#txtE").val();
+		var d = modinv(e, phi);
+		$("#txtD").html(d);
+	});
+	</script>
+</body>
+</html>
