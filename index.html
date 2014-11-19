@@ -1,52 +1,232 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>RSA Prime Calculator</title>
+	<title>RSA Calculator</title>
 </head>
 <script src="js/jquery-2.1.1.min.js"></script>
 <script src="js/factoring_calculator.js"></script>
 <script src="js/mod_inverse.js"></script>
+<script src="js/BigInteger.min.js"></script>
+<script src="js/padLeft.js"></script>
+<style type="text/css">
+	input, textarea, button
+	{
+		display: block;
+		margin-bottom: 1em;
+	}
+</style>
 <body>
 	<label for="txtE">e (smallest): </label>
-	<input type="text" id="txtE"></input>
-	<br>
-	<label for="txtNumber">n (largest): </label>
-	<input type="text" id="txtNumber"></input>
-	<br>
-	<button id="btnCalculate">Calculate</button>
-	<br>
-	<p>p and q: <span id="txtPandQ"></span></p>
+	<input type="text" id="txtE" value="53"></input>
+	
+	<label for="txtN">n (largest): </label>
+	<input type="text" id="txtN" value="69647"></input>
+
+	<p>p and q: <span id="txtPAndQ"></span></p>
 	<p>phi(n): <span id="txtPhi"></span></p>
 	<p>d: <span id="txtD"></span></p>
 
+	<button id="btnCalculatePrivateKey">Calculate</button>
+
+	<hr>
+	
+	<label for="txtCipherText">Cipher text (decimal): </label>
+	<textarea id="txtCipherText" rows="5" cols="50">46062 67334 4825 33538 52810 69038</textarea>
+
+	<label for="txtDecodedText">Decoded: </label>
+	<textarea id="txtDecodedText" rows="5" cols="50" disabled></textarea>
+
+	<p>Plain text: <span id="txtPlainTextSolved"></span></p>
+
+	<button id="btnDecodeCipherText">Decode</button>
+
+	<hr>
+
+	<label for="txtPlainText">Plain text: </label>
+	<textarea id="txtPlainText" rows="5" cols="50"></textarea>
+
+	<label for="txtPlainText">Encoded: </label>
+	<textarea id="txtEncodedText" rows="5" cols="50" disabled></textarea>
+
+	<button id="btnEncodePlainText">Encode</button>
+
 	<script>
-	$("#btnCalculate").click(function()
+	(function()
 	{
-		var number = $("#txtNumber").val();
+		var e;
+		var n;
+		var p;
+		var q;
+		var phi;
+		var d;
 
-		if(number.length < 1 || txtE.length < 1)
-		{	
-			$("#txtPandQ").html("Please fill in all the fields");
-			return false;
-		}
-
-		var result = factor(number);
-		$("#txtPandQ").html(result);
-
-		var resultSplit = result.split(" ");
-
-		for(var i = 0; i < resultSplit.length; i++)
+		$("#btnCalculatePrivateKey").click(function()
 		{
-			resultSplit[i] = parseInt(resultSplit[i]);
-		}
+			n = $("#txtN").val();
 
-		var phi = (resultSplit[0] - 1) * (resultSplit[1] - 1);
-		$("#txtPhi").html(phi);
+			if(n.length < 1 || txtE.length < 1)
+			{	
+				$("#txtPAndQ").html("Please fill in all the fields");
+				return false;
+			}
 
-		var e = $("#txtE").val();
-		var d = modinv(e, phi);
-		$("#txtD").html(d);
-	});
+			var pAndQ = factor(n);
+			$("#txtPAndQ").html(pAndQ);
+
+			var pAndQSplit = pAndQ.split(" ");
+			console.log(pAndQSplit);
+
+			p = pAndQSplit[0];
+			q = pAndQSplit[1];
+
+			phi = (p - 1) * (q - 1);
+			$("#txtPhi").html(phi);
+
+			e = $("#txtE").val();
+			d = modinv(e, phi);
+			$("#txtD").html(d);
+		});
+
+		$("#btnDecodeCipherText").click(function()
+		{
+			if(!n || !e || !p || !q || !phi || !d)
+			{	
+				$("#txtCipherText").val("Please fill in all the fields");
+				return false;
+			}
+
+			var cipherText = $("#txtCipherText").val();
+
+			if(cipherText.length <= 0)
+			{
+				return; //stop here if no ciphertext given
+			}
+
+			var cipherArray = cipherText.split(' ');
+			var decodedTextArray = [];
+			var decodedText = "";
+
+			console.log(cipherArray);
+
+			for (var i = 0; i < cipherArray.length; i++)
+			{
+				var result = bigInt(cipherArray[i]).modPow(d, n).value;
+				result = padLeft(result, 5);
+				decodedTextArray.push(result);
+				decodedText += result + " ";
+			};
+
+			decodedText = decodedText.trim();
+
+			console.log(decodedTextArray);
+			$("#txtDecodedText").val(decodedText);
+			
+			var decodedBinaryArray = [];
+			for (var i = 0; i < decodedTextArray.length; i++)
+			{
+				var binaryFull = parseInt(decodedTextArray[i]).toString(2); // decimal to binary
+
+				if(binaryFull.length > 8) //don't split single values
+				{
+					var binaryLeft = binaryFull.substring(0, binaryFull.length / 2);
+					var binaryRight = binaryFull.substring(binaryFull.length / 2, binaryFull.length);
+					decodedBinaryArray.push(binaryLeft);
+					decodedBinaryArray.push(binaryRight);
+				}
+				else
+				{
+					decodedBinaryArray.push(binaryFull);
+				}	
+			};
+
+			console.log(decodedBinaryArray);
+
+			var plainTextArray = [];
+			for (var i = 0; i < decodedBinaryArray.length; i++)
+			{
+				var plainTextLetterCode = parseInt(decodedBinaryArray[i],2).toString(10); // to ascii code
+				var plainTextLetter = String.fromCharCode(plainTextLetterCode);
+				plainTextArray.push(plainTextLetter);
+			}
+
+			console.log(plainTextArray);
+
+			$("#txtPlainTextSolved").html(plainTextArray.join(""));
+		});
+
+		$("#btnEncodePlainText").click(function()
+		{
+			var plainTextRaw = $("#txtPlainText").val();
+
+			if(!n || !e || !p || !q || !phi || !d || plainTextRaw.length < 1)
+			{	
+				$("#txtPlainText").val("Please fill in all the fields");
+				return false;
+			}
+
+			var plainTextArray = plainTextRaw.split("");
+			console.log(plainTextArray);
+
+			var encodedArrayBinary = [];
+			var i = 0;
+
+			if(plainTextArray.length % 2 != 0)
+			{
+				console.log("uneven plaintext");
+				var asciiCode = plainTextArray[0].charCodeAt();
+				var firstLetterBinary = parseInt(asciiCode).toString(2);
+
+				encodedArrayBinary.push(firstLetterBinary);
+
+				i = 1; //skip first letter
+			}
+
+			while(i < plainTextArray.length)
+			{
+				var asciiCodeLeft = plainTextArray[i].charCodeAt();
+				var leftLetterBinary = parseInt(asciiCodeLeft).toString(2);
+				leftLetterBinary = padLeft(leftLetterBinary, 8); //ensure valid binary
+
+				var asciiCodeRight = plainTextArray[i + 1].charCodeAt();
+				var rightLetterBinary = parseInt(asciiCodeRight).toString(2);
+				rightLetterBinary = padLeft(rightLetterBinary, 8); //ensure valid binary
+
+				var encodedLetterGroup = (''+leftLetterBinary) + (''+rightLetterBinary); //quickly convert int to string
+
+				encodedArrayBinary.push(encodedLetterGroup);
+				i += 2;
+			}
+
+			console.log(encodedArrayBinary);
+
+			var encodedArrayDecimal = [];
+			for(var i = 0; i < encodedArrayBinary.length; i++)
+			{
+				var encodedLetterDecimal = parseInt(encodedArrayBinary[i], 2); //binary to decimal
+				encodedArrayDecimal.push(encodedLetterDecimal);
+			}
+
+			console.log(encodedArrayDecimal);
+
+			var encryptedArrayDecimal = [];
+			for(var i = 0; i < encodedArrayDecimal.length; i++)
+			{
+				var encryptedDecimal = bigInt(encodedArrayDecimal[i]).modPow(e, n).toString();
+				encryptedArrayDecimal.push(encryptedDecimal);
+			}
+
+			var encodedText = "";
+			for(var i = 0; i < encryptedArrayDecimal.length; i++)
+			{
+				encodedText += encryptedArrayDecimal[i] + " ";
+			}
+
+			encodedText = encodedText.trim();
+
+			$("#txtEncodedText").val(encodedText);
+			console.log(encryptedArrayDecimal);
+		});
+	})();
 	</script>
 </body>
 </html>
